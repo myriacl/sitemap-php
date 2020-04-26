@@ -27,10 +27,13 @@ class Sitemap {
 	private $current_item = 0;
 	private $current_sitemap = 0;
 
+	private $sitemap_list=array();
+
 	const EXT = '.xml';
 	const SCHEMA = 'http://www.sitemaps.org/schemas/sitemap/0.9';
+	const SCHEMA_IMAGE='http://www.google.com/schemas/sitemap-image/1.1';
 	const DEFAULT_PRIORITY = 0.5;
-	const ITEM_PER_SITEMAP = 50000;
+	const ITEM_PER_SITEMAP = 40000;
 	const SEPERATOR = '-';
 	const INDEX_SUFFIX = 'index';
 
@@ -115,6 +118,13 @@ class Sitemap {
 	 * @return Sitemap
 	 */
 	public function setFilename($filename) {
+		
+		if ($this->getWriter() instanceof \XMLWriter) {
+			$this->endSitemap();
+			$this->current_sitemap = 0;
+			$this->current_item = 0;
+		}
+		
 		$this->filename = $filename;
 		return $this;
 	}
@@ -152,24 +162,39 @@ class Sitemap {
 	private function incCurrentSitemap() {
 		$this->current_sitemap = $this->current_sitemap + 1;
 	}
-
+	
+	private function pad1000($str){
+		return substr("0000$str", -4);
+	}
+	
 	/**
 	 * Prepares sitemap XML document
 	 * 
 	 */
 	private function startSitemap() {
 		$this->setWriter(new \XMLWriter());
+		
+		$real_filename = "";
+		
 		if ($this->getCurrentSitemap()) {
-			$this->getWriter()->openURI($this->getPath() . $this->getFilename() . self::SEPERATOR . $this->getCurrentSitemap() . self::EXT);
+			$real_filename = $this->getFilename() . self::SEPERATOR . $this->pad1000($this->getCurrentSitemap()) . self::EXT;
+			$this->getWriter()->openURI($this->getPath() . $real_filename);
 		} else {
-			$this->getWriter()->openURI($this->getPath() . $this->getFilename() . self::EXT);
+			$real_filename = $this->getFilename() . self::EXT;
+			$this->getWriter()->openURI($this->getPath() . $real_filename);
 		}
+		
+		$this->sitemap_list[]=$real_filename;
+		
 		$this->getWriter()->startDocument('1.0', 'UTF-8');
 		$this->getWriter()->setIndent(true);
 		$this->getWriter()->startElement('urlset');
 		$this->getWriter()->writeAttribute('xmlns', self::SCHEMA);
+		$this->getWriter()->writeAttribute('xmlns:image', self::SCHEMA_IMAGE);
 	}
-
+	
+	
+	
 	private $image_for_next_item=array();
 	/**
 	 * receive a named array with at least loc="something"
@@ -189,7 +214,7 @@ class Sitemap {
 	 * @return Sitemap
 	 */
 	public function addItem($loc, $priority = self::DEFAULT_PRIORITY, $changefreq = NULL, $lastmod = NULL) {
-		if (($this->getCurrentItem() % self::ITEM_PER_SITEMAP) == 0) {
+		if (($this->getCurrentItem() % self::ITEM_PER_SITEMAP) == 0 ) {
 			if ($this->getWriter() instanceof \XMLWriter) {
 				$this->endSitemap();
 			}
@@ -215,7 +240,7 @@ class Sitemap {
 					$this->getWriter()->writeElement('image:title', $image['title']);
 				}
 				$this->getWriter()->endElement();
-
+				
 				if( ($this->getCurrentItem() % self::ITEM_PER_SITEMAP) != 0 ){
 					$this->incCurrentItem();
 				}
@@ -225,8 +250,8 @@ class Sitemap {
 
 			$this->image_for_next_item=array();
 		}
-		
-		
+
+
 		$this->getWriter()->endElement();
 		return $this;
 	}
@@ -250,7 +275,7 @@ class Sitemap {
 	 * Finalizes tags of sitemap XML document.
 	 *
 	 */
-	private function endSitemap() {
+	public function endSitemap() {
 		if (!$this->getWriter()) {
 			$this->startSitemap();
 		}
@@ -272,9 +297,11 @@ class Sitemap {
 		$indexwriter->setIndent(true);
 		$indexwriter->startElement('sitemapindex');
 		$indexwriter->writeAttribute('xmlns', self::SCHEMA);
-		for ($index = 0; $index < $this->getCurrentSitemap(); $index++) {
+		//for ($index = 0; $index < $this->getCurrentSitemap(); $index++) {
+		foreach ($this->sitemap_list as $real_filename) {
+			
 			$indexwriter->startElement('sitemap');
-			$indexwriter->writeElement('loc', $loc . $this->getFilename() . ($index ? self::SEPERATOR . $index : '') . self::EXT);
+			$indexwriter->writeElement('loc', $loc . $real_filename);
 			$indexwriter->writeElement('lastmod', $this->getLastModifiedDate($lastmod));
 			$indexwriter->endElement();
 		}
