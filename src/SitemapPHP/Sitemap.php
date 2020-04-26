@@ -170,6 +170,15 @@ class Sitemap {
 		$this->getWriter()->writeAttribute('xmlns', self::SCHEMA);
 	}
 
+	private $image_for_next_item=array();
+	/**
+	 * receive a named array with at least loc="something"
+	 * also possibru : caption, geo_location, title, license
+	 */
+	public function addImageForNextItem($imagedata=array()){
+		$this->image_for_next_item[]=$imagedata;		
+	}
+	
 	/**
 	 * Adds an item to sitemap
 	 *
@@ -196,6 +205,28 @@ class Sitemap {
 			$this->getWriter()->writeElement('changefreq', $changefreq);
 		if ($lastmod)
 			$this->getWriter()->writeElement('lastmod', $this->getLastModifiedDate($lastmod));
+		
+		if(count($this->image_for_next_item)>0){
+			
+			foreach($this->image_for_next_item as $image){
+				$this->getWriter()->startElement('image:image');
+				$this->getWriter()->writeElement('image:loc', $image['loc']);
+				if($image['title']){
+					$this->getWriter()->writeElement('image:title', $image['title']);
+				}
+				$this->getWriter()->endElement();
+
+				if( ($this->getCurrentItem() % self::ITEM_PER_SITEMAP) != 0 ){
+					$this->incCurrentItem();
+				}
+
+			}
+
+
+			$this->image_for_next_item=array();
+		}
+		
+		
 		$this->getWriter()->endElement();
 		return $this;
 	}
