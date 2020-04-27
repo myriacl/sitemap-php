@@ -214,6 +214,9 @@ class Sitemap {
 	 * @return Sitemap
 	 */
 	public function addItem($loc, $priority = self::DEFAULT_PRIORITY, $changefreq = NULL, $lastmod = NULL) {
+		if(!$loc || trim($loc)===''){
+			return;
+		}
 		if (($this->getCurrentItem() % self::ITEM_PER_SITEMAP) == 0 ) {
 			if ($this->getWriter() instanceof \XMLWriter) {
 				$this->endSitemap();
